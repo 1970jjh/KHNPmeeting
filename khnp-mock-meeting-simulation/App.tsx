@@ -296,7 +296,7 @@ const JoinRoomScreen = () => {
         {step === 3 && selectedRoom && (
           <div className="space-y-6">
             <div className="bg-gray-100 p-4 neo-border-sm mb-4">
-              <p className="font-bold text-sm">{selectedRoom.name} > {selectedTeamIndex! + 1}팀</p>
+              <p className="font-bold text-sm">{selectedRoom.name} → {selectedTeamIndex! + 1}팀</p>
             </div>
             <label className="block font-black mb-2">성함 입력</label>
             <input
