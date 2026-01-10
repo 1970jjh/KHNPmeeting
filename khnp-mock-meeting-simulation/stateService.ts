@@ -114,3 +114,12 @@ export const startMeeting = async (roomId: string) => {
     startTime: Date.now()
   });
 };
+
+// 회의 종료
+export const stopMeeting = async (roomId: string) => {
+  const roomRef = ref(database, `rooms/${roomId}`);
+  await update(roomRef, {
+    isStarted: false,
+    startTime: null
+  });
+};
