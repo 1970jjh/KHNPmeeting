@@ -8,7 +8,7 @@ const firebaseConfig = {
   storageBucket: "khnpmeeting-7e554.firebasestorage.app",
   messagingSenderId: "604104074596",
   appId: "1:604104074596:web:d85fa8cacfb9fdf8810671",
-  databaseURL: "https://khnpmeeting-7e554-default-rtdb.firebaseio.com"
+  databaseURL: "https://khnpmeeting-7e554-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 const app = initializeApp(firebaseConfig);
