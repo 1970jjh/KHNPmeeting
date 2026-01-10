@@ -401,7 +401,7 @@ const RoomScreen = () => {
           </div>
 
           <div className="space-y-6">
-            <OrgChart participants={participants.filter(p => p.teamIndex === me.teamIndex)} />
+            <OrgChart participants={participants.filter(p => p.teamIndex === me.teamIndex)} currentParticipantId={participantId} />
           </div>
         </div>
 
