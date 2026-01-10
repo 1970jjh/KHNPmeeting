@@ -175,7 +175,7 @@ const AdminDashboard = () => {
                     <span>⏱ {room.duration}분 설정</span>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <NeoButton
                     className="flex-1 md:flex-none"
                     variant={room.isStarted ? "success" : "primary"}
@@ -184,6 +184,18 @@ const AdminDashboard = () => {
                   >
                     {room.isStarted ? '회의 진행 중' : '전체 회의 시작'}
                   </NeoButton>
+                  {room.isStarted && (
+                    <NeoButton
+                      variant="danger"
+                      onClick={() => {
+                        if (confirm('정말로 회의를 종료하시겠습니까?')) {
+                          stateService.stopMeeting(room.id);
+                        }
+                      }}
+                    >
+                      회의 종료
+                    </NeoButton>
+                  )}
                   <NeoButton variant="white" onClick={() => startEdit(room)}>설정 수정</NeoButton>
                   <NeoButton variant="danger" onClick={() => stateService.deleteRoom(room.id)}>삭제</NeoButton>
                 </div>
@@ -401,7 +413,7 @@ const RoomScreen = () => {
           </div>
 
           <div className="space-y-6">
-            <OrgChart participants={participants.filter(p => p.teamIndex === me.teamIndex)} />
+            <OrgChart participants={participants.filter(p => p.teamIndex === me.teamIndex)} currentParticipantId={participantId} />
           </div>
         </div>
 

@@ -5,9 +5,10 @@ import { ROLES } from '../constants';
 
 interface OrgChartProps {
   participants: Participant[];
+  currentParticipantId?: string;
 }
 
-export const OrgChart: React.FC<OrgChartProps> = ({ participants }) => {
+export const OrgChart: React.FC<OrgChartProps> = ({ participants, currentParticipantId }) => {
   // Sort participants by hierarchy level
   const sorted = [...participants].sort((a, b) => {
     const levelA = a.roleId ? ROLES[a.roleId].hierarchyLevel : 99;
@@ -36,10 +37,22 @@ export const OrgChart: React.FC<OrgChartProps> = ({ participants }) => {
               <div className="flex flex-wrap justify-center gap-2">
                 {levels[level].map(p => {
                   const role = p.roleId ? ROLES[p.roleId] : null;
+                  const isMe = p.id === currentParticipantId;
                   return (
-                    <div key={p.id} className="bg-blue-50 neo-border-sm p-1.5 min-w-[90px] text-center shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]">
-                      <div className="text-sm font-black text-black leading-tight">{p.name}</div>
-                      <div className="text-[10px] font-bold text-blue-600 leading-tight">{role?.rank || '미정'}</div>
+                    <div
+                      key={p.id}
+                      className={`neo-border-sm p-1.5 min-w-[90px] text-center ${
+                        isMe
+                          ? 'bg-yellow-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] scale-105'
+                          : 'bg-blue-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]'
+                      }`}
+                    >
+                      <div className={`text-sm font-black leading-tight ${isMe ? 'text-black' : 'text-black'}`}>
+                        {p.name} {isMe && '(나)'}
+                      </div>
+                      <div className={`text-[10px] font-bold leading-tight ${isMe ? 'text-black' : 'text-blue-600'}`}>
+                        {role?.rank || '미정'}
+                      </div>
                     </div>
                   );
                 })}
