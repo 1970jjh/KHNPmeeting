@@ -1,33 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import { GoogleGenAI } from "@google/genai";
-import { RoleType, Room, Participant } from './types';
+import { Room } from './types';
 import { ROLES, ADMIN_PASSWORD } from './constants';
 import * as stateService from './stateService';
 import { NeoButton } from './components/NeoButton';
 import { RoleCard } from './components/RoleCard';
 import { OrgChart } from './components/OrgChart';
 import { Timer } from './components/Timer';
-
-// AI Helper Function
-const getAIFeedback = async (prompt: string) => {
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: prompt,
-      config: {
-        systemInstruction: "당신은 한국수력원자력의 조직 문화와 회의 스킬 전문가입니다. 사용자의 역할극을 돕기 위해 캐릭터의 성격과 말투를 완벽하게 분석하여 조언해주세요.",
-        temperature: 0.8,
-      }
-    });
-    return response.text;
-  } catch (error) {
-    console.error("AI Error:", error);
-    return "AI 응답을 가져오는 데 실패했습니다. 다시 시도해주세요.";
-  }
-};
 
 // --- Screens ---
 
@@ -91,7 +71,7 @@ const AdminLoginScreen = () => {
               placeholder="••••••"
               value={pw}
               onChange={(e) => setPw(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
           </div>
           <NeoButton className="w-full py-4 text-xl" onClick={handleLogin}>로그인</NeoButton>
@@ -313,7 +293,7 @@ const JoinRoomScreen = () => {
               placeholder="본인의 이름을 입력하세요"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleJoin()}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               autoFocus
             />
             <NeoButton className="w-full py-4 text-xl" onClick={handleJoin}>회의실 입장</NeoButton>
@@ -330,9 +310,6 @@ const JoinRoomScreen = () => {
 const RoomScreen = () => {
   const { roomId, participantId } = useParams();
   const [room, setRoom] = useState<Room | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiResponse, setAiResponse] = useState("");
-  const [userDraft, setUserDraft] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -355,26 +332,6 @@ const RoomScreen = () => {
 
   const me = room.participants.find(p => p.id === participantId);
   if (!me) return null;
-
-  const handleGetHint = async () => {
-    if (!me.roleId) return;
-    setAiLoading(true);
-    const role = ROLES[me.roleId];
-    const prompt = `나는 한수원 모의회의에서 '${role.title}' 역할을 맡았어. 주제는 '발전소 주변 지역주민 상생 축제 기획'이야. 내 캐릭터의 성격과 비밀 미션을 고려해서, 회의 오프닝에서 던질만한 강렬한 첫 마디 3가지를 한국어로 제안해줘.`;
-    const result = await getAIFeedback(prompt);
-    setAiResponse(result);
-    setAiLoading(false);
-  };
-
-  const handleCheckMission = async () => {
-    if (!me.roleId || !userDraft) return;
-    setAiLoading(true);
-    const role = ROLES[me.roleId];
-    const prompt = `나는 '${role.title}' 역할을 수행 중이야. 내 미션은 '${role.mission}'이야. 내가 회의에서 "${userDraft}"라고 말하려고 하는데, 내 역할과 미션에 얼마나 잘 맞는지 평가해주고, 더 캐릭터의 특징(말투 등)이 살아나도록 수정 제안을 해줘.`;
-    const result = await getAIFeedback(prompt);
-    setAiResponse(result);
-    setAiLoading(false);
-  };
 
   if (!room.isStarted) {
     return (
@@ -429,37 +386,6 @@ const RoomScreen = () => {
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white neo-border neo-shadow p-6">
-              <h3 className="text-xl font-black mb-4 flex items-center gap-2">
-                <span>🤖</span> AI 회의 어시스턴트
-              </h3>
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <NeoButton variant="success" className="text-xs flex-1" onClick={handleGetHint} disabled={aiLoading}>
-                    {aiLoading ? '분석 중...' : '오프닝 멘트 추천'}
-                  </NeoButton>
-                </div>
-                
-                <textarea 
-                  className="w-full neo-border-sm p-3 font-bold text-sm outline-none h-24 focus:bg-blue-50"
-                  placeholder="내가 회의에서 하고 싶은 말을 여기에 적어보세요..."
-                  value={userDraft}
-                  onChange={(e) => setUserDraft(e.target.value)}
-                />
-                
-                <NeoButton variant="primary" className="text-xs w-full" onClick={handleCheckMission} disabled={aiLoading || !userDraft}>
-                  {aiLoading ? '검토 중...' : '내 발언 미션 적합도 체크'}
-                </NeoButton>
-
-                {aiResponse && (
-                  <div className="bg-blue-50 neo-border-sm p-4 text-xs font-bold leading-relaxed whitespace-pre-wrap">
-                    <p className="text-blue-600 mb-2 border-b border-blue-200 pb-1">AI의 조언:</p>
-                    {aiResponse}
-                  </div>
-                )}
-              </div>
-            </div>
-
             <OrgChart participants={room.participants.filter(p => p.teamIndex === me.teamIndex)} />
           </div>
         </div>

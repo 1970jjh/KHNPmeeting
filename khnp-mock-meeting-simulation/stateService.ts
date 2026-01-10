@@ -17,7 +17,7 @@ export const saveState = (state: { rooms: Room[] }) => {
 export const createRoom = (name: string, teamCount: number, duration: number): Room => {
   const state = getState();
   const newRoom: Room = {
-    id: Math.random().toString(36).substr(2, 9),
+    id: Math.random().toString(36).slice(2, 11),
     name,
     teamCount,
     duration,
@@ -50,7 +50,7 @@ export const joinRoom = (roomId: string, teamIndex: number, name: string): strin
   const room = state.rooms.find(r => r.id === roomId);
   if (!room) throw new Error('방을 찾을 수 없습니다.');
   
-  const participantId = Math.random().toString(36).substr(2, 9);
+  const participantId = Math.random().toString(36).slice(2, 11);
   room.participants.push({ id: participantId, name, teamIndex });
   saveState(state);
   return participantId;
