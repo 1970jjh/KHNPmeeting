@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface TimerProps {
   startTime: number;
@@ -9,6 +9,11 @@ interface TimerProps {
 
 export const Timer: React.FC<TimerProps> = ({ startTime, durationMinutes, onEnd }) => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const hasEndedRef = useRef(false);
+
+  useEffect(() => {
+    hasEndedRef.current = false;
+  }, [startTime, durationMinutes]);
 
   useEffect(() => {
     const calculateTime = () => {
@@ -16,8 +21,9 @@ export const Timer: React.FC<TimerProps> = ({ startTime, durationMinutes, onEnd 
       const end = startTime + durationMinutes * 60 * 1000;
       const remaining = Math.max(0, Math.floor((end - now) / 1000));
       setTimeLeft(remaining);
-      
-      if (remaining === 0 && onEnd) {
+
+      if (remaining === 0 && onEnd && !hasEndedRef.current) {
+        hasEndedRef.current = true;
         onEnd();
       }
     };
