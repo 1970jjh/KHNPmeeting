@@ -103,13 +103,13 @@ export const deleteRoom = async (id: string) => {
 };
 
 // 사용 가능한 역할 찾기 (중간 참여용)
-const getAvailableRole = (room: Room, teamIndex: number): RoleType | undefined => {
+const getAvailableRole = (room: Room, teamIndex: number): RoleType => {
   const participants = room.participants || [];
   const teamParticipants = participants.filter(p => p.teamIndex === teamIndex);
   const usedRoles = teamParticipants.map(p => p.roleId).filter(Boolean) as RoleType[];
 
-  // 팀 크기에 맞는 역할 목록 가져오기
-  const allRoles = getRolesForCount(Math.max(4, teamParticipants.length + 1));
+  // 팀 크기에 맞는 역할 목록 가져오기 (새 참가자 포함)
+  const allRoles = getRolesForCount(teamParticipants.length + 1);
 
   // 사용되지 않은 역할 찾기
   const availableRoles = allRoles.filter(role => !usedRoles.includes(role));
@@ -119,8 +119,9 @@ const getAvailableRole = (room: Room, teamIndex: number): RoleType | undefined =
     return availableRoles[Math.floor(Math.random() * availableRoles.length)];
   }
 
-  // 모든 역할이 사용 중이면 YESMAN 또는 ACTIVE 추가 (가장 유연한 역할)
-  return RoleType.YESMAN;
+  // 모든 역할이 사용 중이면 랜덤하게 배정 (중복 허용)
+  const fallbackRoles = [RoleType.YESMAN, RoleType.ACTIVE, RoleType.MEDIATOR, RoleType.FREELOADER];
+  return fallbackRoles[Math.floor(Math.random() * fallbackRoles.length)];
 };
 
 // 방 참가 (트랜잭션 사용으로 동시 접속 안정화)
@@ -184,10 +185,19 @@ export const startMeeting = async (roomId: string) => {
   for (let t = 0; t < room.teamCount; t++) {
     const teamParticipants = participants.filter(p => p.teamIndex === t);
     if (teamParticipants.length >= 1) {
-      const roles = getRolesForCount(Math.max(4, teamParticipants.length));
+      // 참가자 수에 맞는 역할 가져오기
+      const roles = getRolesForCount(teamParticipants.length);
       const shuffledRoles = [...roles].sort(() => Math.random() - 0.5);
+
+      // 모든 참가자에게 역할 배정 (안전 장치 포함)
       teamParticipants.forEach((p, idx) => {
-        p.roleId = shuffledRoles[idx];
+        if (idx < shuffledRoles.length) {
+          p.roleId = shuffledRoles[idx];
+        } else {
+          // 역할이 부족한 경우 기본 역할 배정
+          const fallbackRoles = [RoleType.YESMAN, RoleType.ACTIVE, RoleType.MEDIATOR, RoleType.FREELOADER];
+          p.roleId = fallbackRoles[idx % fallbackRoles.length];
+        }
       });
     }
   }

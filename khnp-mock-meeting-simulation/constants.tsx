@@ -148,7 +148,7 @@ export const ROLES: Record<RoleType, RoleData> = {
 
 export const getRolesForCount = (count: number): RoleType[] => {
   const base = [RoleType.LEADER, RoleType.DICTATOR, RoleType.ACTIVE, RoleType.MEDIATOR];
-  if (count === 4) return base;
+  if (count <= 4) return base;
   if (count === 5) return [...base, RoleType.YESMAN];
   if (count === 6) return [...base, RoleType.YESMAN, RoleType.DISTRACTOR];
   if (count === 7) return [...base, RoleType.YESMAN, RoleType.DISTRACTOR, RoleType.FREELOADER];
@@ -157,5 +157,14 @@ export const getRolesForCount = (count: number): RoleType[] => {
   if (count === 10) return [RoleType.LEADER, RoleType.DICTATOR, RoleType.ACTIVE, RoleType.ACTIVE, RoleType.MEDIATOR, RoleType.YESMAN, RoleType.YESMAN, RoleType.DISTRACTOR, RoleType.FREELOADER, RoleType.BYSTANDER];
   if (count === 11) return [RoleType.LEADER, RoleType.DICTATOR, RoleType.ACTIVE, RoleType.ACTIVE, RoleType.MEDIATOR, RoleType.MEDIATOR, RoleType.YESMAN, RoleType.YESMAN, RoleType.DISTRACTOR, RoleType.FREELOADER, RoleType.BYSTANDER];
   if (count === 12) return [RoleType.LEADER, RoleType.DICTATOR, RoleType.ACTIVE, RoleType.ACTIVE, RoleType.MEDIATOR, RoleType.MEDIATOR, RoleType.YESMAN, RoleType.YESMAN, RoleType.DISTRACTOR, RoleType.FREELOADER, RoleType.FREELOADER, RoleType.BYSTANDER];
-  return base;
+
+  // 12명 초과시 기본 역할을 반복해서 추가
+  const extendedRoles = [RoleType.LEADER, RoleType.DICTATOR, RoleType.ACTIVE, RoleType.ACTIVE, RoleType.MEDIATOR, RoleType.MEDIATOR, RoleType.YESMAN, RoleType.YESMAN, RoleType.DISTRACTOR, RoleType.FREELOADER, RoleType.FREELOADER, RoleType.BYSTANDER];
+  const additionalRoles = [RoleType.YESMAN, RoleType.ACTIVE, RoleType.MEDIATOR, RoleType.FREELOADER];
+
+  while (extendedRoles.length < count) {
+    extendedRoles.push(additionalRoles[extendedRoles.length % additionalRoles.length]);
+  }
+
+  return extendedRoles;
 };
