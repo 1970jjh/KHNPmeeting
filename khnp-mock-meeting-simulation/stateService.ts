@@ -1,6 +1,38 @@
 import { Room, Participant, RoleType } from './types';
 import { getRolesForCount } from './constants';
-import { database, ref, set, get, onValue, remove, update } from './firebase';
+import { database, ref, set, get, onValue, remove, update, runTransaction, DatabaseReference } from './firebase';
+
+// 세션 저장 키
+const SESSION_KEY = 'KHNP_MEETING_SESSION';
+
+// 세션 타입
+interface SessionData {
+  roomId: string;
+  participantId: string;
+  timestamp: number;
+}
+
+// 세션 저장
+export const saveSession = (roomId: string, participantId: string) => {
+  const session: SessionData = { roomId, participantId, timestamp: Date.now() };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+};
+
+// 세션 불러오기
+export const getSession = (): SessionData | null => {
+  try {
+    const data = localStorage.getItem(SESSION_KEY);
+    if (!data) return null;
+    return JSON.parse(data) as SessionData;
+  } catch {
+    return null;
+  }
+};
+
+// 세션 삭제
+export const clearSession = () => {
+  localStorage.removeItem(SESSION_KEY);
+};
 
 // 실시간 구독을 위한 콜백 저장
 type RoomsCallback = (rooms: Room[]) => void;
@@ -70,20 +102,72 @@ export const deleteRoom = async (id: string) => {
   await remove(roomRef);
 };
 
-// 방 참가
-export const joinRoom = async (roomId: string, teamIndex: number, name: string): Promise<string> => {
-  const roomRef = ref(database, `rooms/${roomId}`);
-  const snapshot = await get(roomRef);
-  const room = snapshot.val() as Room | null;
-
-  if (!room) throw new Error('방을 찾을 수 없습니다.');
-
-  const participantId = Math.random().toString(36).slice(2, 11);
+// 사용 가능한 역할 찾기 (중간 참여용)
+const getAvailableRole = (room: Room, teamIndex: number): RoleType | undefined => {
   const participants = room.participants || [];
-  participants.push({ id: participantId, name, teamIndex });
+  const teamParticipants = participants.filter(p => p.teamIndex === teamIndex);
+  const usedRoles = teamParticipants.map(p => p.roleId).filter(Boolean) as RoleType[];
 
-  await update(roomRef, { participants });
-  return participantId;
+  // 팀 크기에 맞는 역할 목록 가져오기
+  const allRoles = getRolesForCount(Math.max(4, teamParticipants.length + 1));
+
+  // 사용되지 않은 역할 찾기
+  const availableRoles = allRoles.filter(role => !usedRoles.includes(role));
+
+  if (availableRoles.length > 0) {
+    // 랜덤하게 하나 선택
+    return availableRoles[Math.floor(Math.random() * availableRoles.length)];
+  }
+
+  // 모든 역할이 사용 중이면 YESMAN 또는 ACTIVE 추가 (가장 유연한 역할)
+  return RoleType.YESMAN;
+};
+
+// 방 참가 (트랜잭션 사용으로 동시 접속 안정화)
+export const joinRoom = async (roomId: string, teamIndex: number, name: string): Promise<string> => {
+  const roomRef = ref(database, `rooms/${roomId}`) as DatabaseReference;
+  const participantId = Math.random().toString(36).slice(2, 11);
+
+  try {
+    await runTransaction(roomRef, (room: Room | null) => {
+      if (!room) {
+        throw new Error('방을 찾을 수 없습니다.');
+      }
+
+      const participants = room.participants || [];
+      const newParticipant: Participant = { id: participantId, name, teamIndex };
+
+      // 회의가 이미 시작되었으면 역할도 함께 배정
+      if (room.isStarted) {
+        newParticipant.roleId = getAvailableRole(room, teamIndex);
+      }
+
+      participants.push(newParticipant);
+      room.participants = participants;
+
+      return room;
+    });
+
+    return participantId;
+  } catch (error) {
+    // 트랜잭션 실패시 일반 방식으로 재시도
+    const snapshot = await get(roomRef);
+    const room = snapshot.val() as Room | null;
+
+    if (!room) throw new Error('방을 찾을 수 없습니다.');
+
+    const participants = room.participants || [];
+    const newParticipant: Participant = { id: participantId, name, teamIndex };
+
+    if (room.isStarted) {
+      newParticipant.roleId = getAvailableRole(room, teamIndex);
+    }
+
+    participants.push(newParticipant);
+    await update(roomRef, { participants });
+
+    return participantId;
+  }
 };
 
 // 회의 시작

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { Room } from './types';
 import { ROLES, ADMIN_PASSWORD } from './constants';
@@ -8,10 +8,53 @@ import { RoleCard } from './components/RoleCard';
 import { OrgChart } from './components/OrgChart';
 import { Timer } from './components/Timer';
 
+// 로딩 스피너 컴포넌트
+const LoadingSpinner = ({ message = '로딩 중...' }: { message?: string }) => (
+  <div className="min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="bg-white neo-border neo-shadow p-12 text-center">
+      <div className="animate-spin text-5xl mb-6 inline-block">⏳</div>
+      <p className="font-black text-xl">{message}</p>
+    </div>
+  </div>
+);
+
 // --- Screens ---
 
 const HomeScreen = () => {
   const navigate = useNavigate();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      const session = stateService.getSession();
+      if (session) {
+        try {
+          const { rooms: currentRooms } = await stateService.getStateAsync();
+          const room = currentRooms.find(r => r.id === session.roomId);
+          if (room) {
+            const participant = (room.participants || []).find(p => p.id === session.participantId);
+            if (participant) {
+              // 기존 세션으로 복귀
+              navigate(`/room/${session.roomId}/${session.participantId}`);
+              return;
+            }
+          }
+          // 세션이 유효하지 않으면 삭제
+          stateService.clearSession();
+        } catch {
+          stateService.clearSession();
+        }
+      }
+      setIsCheckingSession(false);
+    };
+
+    checkExistingSession();
+  }, [navigate]);
+
+  if (isCheckingSession) {
+    return <LoadingSpinner message="세션 확인 중..." />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 space-y-12">
       <div className="text-center space-y-4">
@@ -234,7 +277,36 @@ const JoinRoomScreen = () => {
   const [selectedTeamIndex, setSelectedTeamIndex] = useState<number | null>(null);
   const [userName, setUserName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
+
+  // 기존 세션 확인
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      const session = stateService.getSession();
+      if (session) {
+        try {
+          const { rooms: currentRooms } = await stateService.getStateAsync();
+          const room = currentRooms.find(r => r.id === session.roomId);
+          if (room) {
+            const participant = (room.participants || []).find(p => p.id === session.participantId);
+            if (participant) {
+              // 기존 세션으로 복귀
+              navigate(`/room/${session.roomId}/${session.participantId}`);
+              return;
+            }
+          }
+          // 세션이 유효하지 않으면 삭제
+          stateService.clearSession();
+        } catch {
+          stateService.clearSession();
+        }
+      }
+      setIsCheckingSession(false);
+    };
+
+    checkExistingSession();
+  }, [navigate]);
 
   useEffect(() => {
     // Firebase 실시간 구독
@@ -256,12 +328,19 @@ const JoinRoomScreen = () => {
     setIsJoining(true);
     try {
       const participantId = await stateService.joinRoom(selectedRoomId, selectedTeamIndex, userName);
+      // 세션 저장
+      stateService.saveSession(selectedRoomId, participantId);
       navigate(`/room/${selectedRoomId}/${participantId}`);
     } catch (error) {
+      console.error('Join error:', error);
       alert('입장에 실패했습니다. 다시 시도해주세요.');
       setIsJoining(false);
     }
   };
+
+  if (isCheckingSession) {
+    return <LoadingSpinner message="세션 확인 중..." />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
@@ -338,22 +417,67 @@ const RoomScreen = () => {
   const { roomId, participantId } = useParams();
   const [room, setRoom] = useState<Room | null>(null);
   const [showEndModal, setShowEndModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // 나가기 핸들러
+  const handleLeave = useCallback(() => {
+    stateService.clearSession();
+    navigate('/');
+  }, [navigate]);
+
   useEffect(() => {
+    // 세션 저장 (URL로 직접 접근한 경우 대비)
+    if (roomId && participantId) {
+      stateService.saveSession(roomId, participantId);
+    }
+
     // Firebase 실시간 구독
     const unsubscribe = stateService.subscribeToRooms((rooms) => {
       const currentRoom = rooms.find(r => r.id === roomId);
       if (!currentRoom) {
-        alert('과정이 종료되었습니다.');
-        navigate('/');
+        stateService.clearSession();
+        setError('과정이 종료되었습니다.');
+        setIsLoading(false);
         return;
       }
+
+      // 참가자 확인
+      const participants = currentRoom.participants || [];
+      const me = participants.find(p => p.id === participantId);
+      if (!me) {
+        stateService.clearSession();
+        setError('참가자 정보를 찾을 수 없습니다. 다시 입장해주세요.');
+        setIsLoading(false);
+        return;
+      }
+
       setRoom(currentRoom);
+      setError(null);
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [roomId, navigate]);
+  }, [roomId, participantId]);
+
+  // 로딩 중
+  if (isLoading) {
+    return <LoadingSpinner message="회의실 연결 중..." />;
+  }
+
+  // 에러 발생
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 space-y-8">
+        <div className="bg-white neo-border neo-shadow p-12 text-center max-w-lg w-full">
+          <div className="text-5xl mb-6">⚠️</div>
+          <h2 className="text-2xl font-black mb-4">{error}</h2>
+        </div>
+        <NeoButton onClick={handleLeave}>홈으로 돌아가기</NeoButton>
+      </div>
+    );
+  }
 
   if (!room) return null;
 
@@ -382,7 +506,7 @@ const RoomScreen = () => {
             </div>
           </div>
         </div>
-        <NeoButton variant="danger" onClick={() => navigate('/')}>나가기</NeoButton>
+        <NeoButton variant="danger" onClick={handleLeave}>나가기</NeoButton>
       </div>
     );
   }
