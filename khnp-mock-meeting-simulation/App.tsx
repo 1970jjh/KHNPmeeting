@@ -524,11 +524,20 @@ const RoomScreen = () => {
             </div>
             <p className="font-bold text-red-500">주제: 발전소 주변 지역주민 상생 축제 기획</p>
           </div>
-          <Timer
-            startTime={room.startTime!}
-            durationMinutes={room.duration}
-            onEnd={() => setShowEndModal(true)}
-          />
+          <div className="flex items-center gap-3">
+            <Timer
+              startTime={room.startTime!}
+              durationMinutes={room.duration}
+              onEnd={() => setShowEndModal(true)}
+            />
+            <button
+              onClick={handleLeave}
+              className="px-3 py-2 neo-border-sm font-bold text-sm bg-gray-100 hover:bg-red-500 hover:text-white transition-colors"
+              title="나가기"
+            >
+              나가기
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
