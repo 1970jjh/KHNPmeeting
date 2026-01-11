@@ -337,6 +337,7 @@ const JoinRoomScreen = () => {
 const RoomScreen = () => {
   const { roomId, participantId } = useParams();
   const [room, setRoom] = useState<Room | null>(null);
+  const [showEndModal, setShowEndModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -402,7 +403,7 @@ const RoomScreen = () => {
           <Timer
             startTime={room.startTime!}
             durationMinutes={room.duration}
-            onEnd={() => alert('회의 시간이 종료되었습니다! 결과물을 정리해 주세요.')}
+            onEnd={() => setShowEndModal(true)}
           />
         </div>
 
@@ -431,6 +432,26 @@ const RoomScreen = () => {
           </ul>
         </div>
       </div>
+
+      {showEndModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white neo-border neo-shadow p-6 max-w-sm w-full relative">
+            <button
+              onClick={() => setShowEndModal(false)}
+              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center font-black text-xl hover:bg-gray-100 neo-border-sm"
+              aria-label="닫기"
+            >
+              ✕
+            </button>
+            <div className="pr-8">
+              <p className="font-bold text-lg mb-4">회의 시간이 종료되었습니다!<br/>결과물을 정리해 주세요.</p>
+            </div>
+            <NeoButton className="w-full mt-2" onClick={() => setShowEndModal(false)}>
+              확인
+            </NeoButton>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
